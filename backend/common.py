@@ -40,7 +40,7 @@ print(f"Length: {len(ips)}\n{ips}")  # to show the ips
 if len(sys.argv) > 1:
     try:
         # Try to convert the argument to an integer
-        timeout_set = int(sys.argv[1])
+        timeout_set = sys.argv[1]
         print(f"Custom-Timeout Set: {timeout_set}")
     except ValueError:
         # Handle the case where the argument is not an integer

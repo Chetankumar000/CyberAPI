@@ -9,11 +9,12 @@ from AIPDBmain import aipdbmain
 from IPQSmain import ipqsmain
 from VTmain import vtmain
 from OTXAmain import otxamain
+from waitress import serve  # Import Waitress
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
 
-# Helper functions
+# Helper functions (same as before)
 async def get_domain_and_country(ip_address):
     try:
         domain = socket.gethostbyaddr(ip_address)[0]
@@ -30,13 +31,14 @@ async def get_domain_and_country(ip_address):
 
 async def process_ip_or_domain(address, index, session):
     try:
-        # Check if the input is an IP; otherwise, resolve domain
-        try:
-            ipaddress.ip_address(address)  # Validate if it's already an IP
-        except ValueError:
+        # Check if the input is IP; otherwise, resolve domain
+        if not ipaddress.ip_address(address):
             address = socket.gethostbyname(address)
-    except socket.gaierror:
-        return {"error": f"Invalid input '{address}' - Not a valid IP or domain!"}
+    except ValueError:
+        try:
+            address = socket.gethostbyname(address)
+        except socket.gaierror:
+            return {"error": f"Invalid input '{address}' - Not a valid IP or domain!"}
 
     domain, country = await get_domain_and_country(address)
 
@@ -66,27 +68,14 @@ async def all():
 async def analyze():
     data = request.json
     inputs = data.get("inputs", [])
+    time = aiohttp.ClientTimeout(total=60)
 
-    # Validate inputs
-    if not isinstance(inputs, list) or not inputs:
-        return jsonify({"error": "Invalid input: 'inputs' must be a non-empty list."}), 400
-
-    # Set up aiohttp client timeout correctly
-    timeout = aiohttp.ClientTimeout(total=30)
-
-    async with aiohttp.ClientSession(timeout=timeout) as session:
+    async with aiohttp.ClientSession(timeout=time) as session:
         tasks = [process_ip_or_domain(ip, i, session) for i, ip in enumerate(inputs, start=1)]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
+        results = await asyncio.gather(*tasks)
 
-    # Handle any errors during processing
-    cleaned_results = []
-    for result in results:
-        if isinstance(result, Exception):
-            cleaned_results.append({"error": str(result)})
-        else:
-            cleaned_results.append(result)
+    return jsonify(results)
 
-    return jsonify(cleaned_results)
-
+# Run the app with Waitress instead of Flask's default server
 if __name__ == "__main__":
-    app.run(debug=True)
+    serve(app, host='0.0.0.0', port=5000)  # Change to your desired port if necessary
