@@ -9,7 +9,6 @@ from AIPDBmain import aipdbmain
 from IPQSmain import ipqsmain
 from VTmain import vtmain
 from OTXAmain import otxamain
-from waitress import serve  # Import Waitress
 
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
@@ -68,14 +67,10 @@ async def all():
 async def analyze():
     data = request.json
     inputs = data.get("inputs", [])
-    time = aiohttp.ClientTimeout(total=60)
+    timeout = aiohttp.ClientTimeout(total=30)
 
-    async with aiohttp.ClientSession(timeout=time) as session:
+    async with aiohttp.ClientSession(timeout=timeout) as session:
         tasks = [process_ip_or_domain(ip, i, session) for i, ip in enumerate(inputs, start=1)]
         results = await asyncio.gather(*tasks)
 
     return jsonify(results)
-
-# Run the app with Waitress instead of Flask's default server
-if __name__ == "__main__":
-    serve(app, host='0.0.0.0', port=5000)  # Change to your desired port if necessary

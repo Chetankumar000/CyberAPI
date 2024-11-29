@@ -4,7 +4,7 @@ import json
 import truststore
 import os, sys
 
-timeout_set: int = 10
+timeout_set: int = 10000
 
 os.system("color")  # enables ANSI escape sequences to color output; check
 
