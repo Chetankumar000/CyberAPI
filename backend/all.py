@@ -13,7 +13,7 @@ from OTXAmain import otxamain
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
 
-# Helper functions (same as before)
+# Helper functions
 async def get_domain_and_country(ip_address):
     try:
         domain = socket.gethostbyaddr(ip_address)[0]
@@ -30,14 +30,13 @@ async def get_domain_and_country(ip_address):
 
 async def process_ip_or_domain(address, index, session):
     try:
-        # Check if the input is IP; otherwise, resolve domain
-        if not ipaddress.ip_address(address):
-            address = socket.gethostbyname(address)
-    except ValueError:
+        # Check if the input is an IP; otherwise, resolve domain
         try:
+            ipaddress.ip_address(address)  # Validate if it's already an IP
+        except ValueError:
             address = socket.gethostbyname(address)
-        except socket.gaierror:
-            return {"error": f"Invalid input '{address}' - Not a valid IP or domain!"}
+    except socket.gaierror:
+        return {"error": f"Invalid input '{address}' - Not a valid IP or domain!"}
 
     domain, country = await get_domain_and_country(address)
 
@@ -67,16 +66,27 @@ async def all():
 async def analyze():
     data = request.json
     inputs = data.get("inputs", [])
+
+    # Validate inputs
+    if not isinstance(inputs, list) or not inputs:
+        return jsonify({"error": "Invalid input: 'inputs' must be a non-empty list."}), 400
+
+    # Set up aiohttp client timeout correctly
     timeout = aiohttp.ClientTimeout(total=30)
 
     async with aiohttp.ClientSession(timeout=timeout) as session:
         tasks = [process_ip_or_domain(ip, i, session) for i, ip in enumerate(inputs, start=1)]
-        results = await asyncio.gather(*tasks)
+        results = await asyncio.gather(*tasks, return_exceptions=True)
 
-    return jsonify(results)
+    # Handle any errors during processing
+    cleaned_results = []
+    for result in results:
+        if isinstance(result, Exception):
+            cleaned_results.append({"error": str(result)})
+        else:
+            cleaned_results.append(result)
 
-
-
+    return jsonify(cleaned_results)
 
 if __name__ == "__main__":
     app.run(debug=True)
