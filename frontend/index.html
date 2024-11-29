@@ -83,6 +83,7 @@
         border-collapse: collapse;
         margin-top: 20px;
         color: #eee;
+        display: none; /* Initially hide the table */
       }
 
       th,
@@ -191,7 +192,7 @@
         Analyzing, please wait...
       </div>
       <div id="error" class="error" style="display: none;"></div>
-      <table>
+      <table id="resultsTable">
         <thead>
           <tr>
             <th>#</th>
@@ -211,10 +212,9 @@
       const analyzeBtn = document.getElementById("analyzeBtn");
       const clearBtn = document.getElementById("clearBtn");
       const downloadBtn = document.getElementById("downloadBtn");
-      const toggleModeBtn = document.getElementById("toggleMode");
       const loadingDiv = document.getElementById("loading");
       const errorDiv = document.getElementById("error");
-      const resultsTable = document.getElementById("results");
+      const resultsTable = document.getElementById("resultsTable");
       const body = document.body;
 
       let analysisResults = [];
@@ -241,16 +241,14 @@
             }
           );
 
-
-
           if (!response.ok) {
             throw new Error(`HTTP Error: ${response.status}`);
           }
 
           const results = await response.json();
           analysisResults = results;
-          console.log(analysisResults)
           updateResults(results);
+          resultsTable.style.display = "table"; // Show table after results are fetched
           downloadBtn.disabled = false;
         } catch (error) {
           showError(`Error: ${error.message}`);
@@ -263,6 +261,7 @@
         document.getElementById("input").value = "";
         resultsTable.innerHTML = "";
         analysisResults = [];
+        resultsTable.style.display = "none"; // Hide table when cleared
         downloadBtn.disabled = true;
         errorDiv.style.display = "none";
       });
@@ -272,8 +271,8 @@
           [
             index + 1,
             res.IP || "",
-            res.Domain || "",
-            res.Country || "",
+            res.Domain || res.AbuseIPDB?.data?.Domain,
+            res.Country ||  res.AbuseIPDB?.data?.countryCode,
             res.AbuseIPDB?.data?.abuseConfidenceScore,
             res.VT?.data?.attributes?.last_analysis_stats?.malicious,
             res["OTX-A"]?.reputation,
@@ -292,24 +291,24 @@
         URL.revokeObjectURL(url);
       });
 
-
-
       function showError(message) {
         errorDiv.textContent = message;
         errorDiv.style.display = "block";
+        resultsTable.style.display = "none"; // Hide table when there is an error
       }
 
       function updateResults(results) {
-        resultsTable.innerHTML = results
+        const resultsContainer = document.getElementById("results");
+        resultsContainer.innerHTML = results
           .map(
             (res, index) => `
           <tr>
             <td>${index + 1}</td>
             <td>${res.IP || ""}</td>
-            <td>${res.Domain || res.AbuseIPDB?.data?.Domain}</td>
+            <td>${res.Domain ||res.AbuseIPDB?.data?.Domain}</td>
             <td>${res.Country || res.AbuseIPDB?.data?.countryCode}</td>
-            <td>${res.AbuseIPDB?.data?.abuseConfidenceScore}</td>
-            <td>${res.VT?.data?.attributes?.last_analysis_stats?.malicious}</td>
+            <td>${res.AbuseIPDB?.data?.abuseConfidenceScore }</td>
+            <td>${res.VT?.data?.attributes?.last_analysis_stats?.malicious }</td>
             <td>${res["OTX-A"]?.reputation}</td>
           </tr>
         `
