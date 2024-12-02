@@ -209,112 +209,121 @@
     </div>
 
     <script>
-      const analyzeBtn = document.getElementById("analyzeBtn");
-      const clearBtn = document.getElementById("clearBtn");
-      const downloadBtn = document.getElementById("downloadBtn");
-      const loadingDiv = document.getElementById("loading");
-      const errorDiv = document.getElementById("error");
-      const resultsTable = document.getElementById("resultsTable");
-      const body = document.body;
+      document.addEventListener("DOMContentLoaded", () => {
+        const analyzeBtn = document.getElementById("analyzeBtn");
+        const clearBtn = document.getElementById("clearBtn");
+        const downloadBtn = document.getElementById("downloadBtn");
+        const loadingDiv = document.getElementById("loading");
+        const errorDiv = document.getElementById("error");
+        const resultsTable = document.getElementById("resultsTable");
+        const resultsContainer = document.getElementById("results");
+        const body = document.body;
 
-      let analysisResults = [];
+        let analysisResults = [];
 
-      analyzeBtn.addEventListener("click", async () => {
-        const input = document.getElementById("input").value;
-        const inputs = input.split(",").map((ip) => ip.trim());
+        analyzeBtn.addEventListener("click", async () => {
+          const input = document.getElementById("input").value;
+          const inputs = input.split(",").map((ip) => ip.trim());
 
-        if (!input) {
-          showError("Please enter IPs or Domains to analyze.");
-          return;
-        }
-
-        loadingDiv.style.display = "block";
-        errorDiv.style.display = "none";
-
-        try {
-          const response = await fetch(
-            "https://e470cbc4-6e33-4df5-9d29-d606fd224f0f-dev.e1-us-east-azure.choreoapis.dev/cyber-api/cyber-api/v1.0/analyze",
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ inputs }),
-            }
-          );
-
-          if (!response.ok) {
-            throw new Error(`HTTP Error: ${response.status}`);
+          if (!input) {
+            showError("Please enter IPs or Domains to analyze.");
+            return;
           }
 
-          const results = await response.json();
-          analysisResults = results;
-          updateResults(results);
-          resultsTable.style.display = "table"; // Show table after results are fetched
-          downloadBtn.disabled = false;
-        } catch (error) {
-          showError(`Error: ${error.message}`);
-        } finally {
-          loadingDiv.style.display = "none";
-        }
-      });
+          loadingDiv.style.display = "block";
+          errorDiv.style.display = "none";
 
-      clearBtn.addEventListener("click", () => {
-        document.getElementById("input").value = "";
-        resultsTable.innerHTML = "";
-        analysisResults = [];
-        resultsTable.style.display = "none"; // Hide table when cleared
-        downloadBtn.disabled = true;
-        errorDiv.style.display = "none";
-      });
+          try {
+            const response = await fetch(
+              "https://e470cbc4-6e33-4df5-9d29-d606fd224f0f-dev.e1-us-east-azure.choreoapis.dev/cyber-api/cyber-api/v1.0/analyze",
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ inputs }),
+              }
+            );
 
-      downloadBtn.addEventListener("click", () => {
-        const csvContent = analysisResults.map((res, index) =>
-          [
-            index + 1,
-            res.IP || "",
-            res.Domain || res.AbuseIPDB?.data?.Domain,
-            res.Country ||  res.AbuseIPDB?.data?.countryCode,
-            res.AbuseIPDB?.data?.abuseConfidenceScore,
-            res.VT?.data?.attributes?.last_analysis_stats?.malicious,
-            res["OTX-A"]?.reputation,
-          ].join(",")
-        );
+            if (!response.ok) {
+              throw new Error(`HTTP Error: ${response.status}`);
+            }
 
-        const blob = new Blob([`#,IP,Domain,Country,AbuseIPDB Score,VT Malicious,OTX-A Reputation\n${csvContent.join("\n")}`], {
-          type: "text/csv",
+            const results = await response.json();
+            analysisResults = results;
+            console.log(analysisResults)
+            updateResults(results);
+            console.log(analysisResults)
+            resultsTable.style.display = "table"; // Show table after results are fetched
+            downloadBtn.disabled = false;
+          } catch (error) {
+            showError(`Error: ${error.message}`);
+          } finally {
+            loadingDiv.style.display = "none";
+          }
         });
 
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = "analysis_results.csv";
-        link.click();
-        URL.revokeObjectURL(url);
+        clearBtn.addEventListener("click", () => {
+          document.getElementById("input").value = "";
+          resultsContainer.innerHTML = ""; // Clear results content
+          analysisResults = [];
+          resultsTable.style.display = "none"; // Hide table when cleared
+          downloadBtn.disabled = true;
+          errorDiv.style.display = "none";
+        });
+
+        downloadBtn.addEventListener("click", () => {
+          const csvContent = analysisResults.map((res, index) =>
+            [
+              index + 1,
+              res.IP || "",
+              res.Domain || res.AbuseIPDB?.data?.Domain,
+              res.Country || res.AbuseIPDB?.data?.countryCode,
+              res.AbuseIPDB?.data?.abuseConfidenceScore,
+              res.VT?.data?.attributes?.last_analysis_stats?.malicious,
+              res["OTX-A"]?.reputation,
+            ].join(",")
+          );
+
+          const blob = new Blob(
+            [
+              `#,IP,Domain,Country,AbuseIPDB Score,VT Malicious,OTX-A Reputation\n${csvContent.join(
+                "\n"
+              )}`,
+            ],
+            { type: "text/csv" }
+          );
+
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = "analysis_results.csv";
+          link.click();
+          URL.revokeObjectURL(url);
+        });
+
+        function showError(message) {
+          errorDiv.textContent = message;
+          errorDiv.style.display = "block";
+          resultsTable.style.display = "none"; // Hide table when there is an error
+        }
+
+        function updateResults(results) {
+          resultsContainer.innerHTML = results
+            .map(
+              (res, index) => `
+              <tr>
+                <td>${index + 1}</td>
+                <td>${res.IP || ""}</td>
+                <td>${res.AbuseIPDB?.data?.domain || res.Domain ||res.AbuseIPDB?.data?.Domain}</td>
+                <td>${res.Country || res.AbuseIPDB?.data?.countryCode  || res.AbuseIPDB?.data?.countryCode}</td>
+                <td>${res.AbuseIPDB?.data?.abuseConfidenceScore}</td>
+                <td>${res.VT?.data?.attributes?.last_analysis_stats?.malicious }</td>
+                <td>${res["OTX-A"]?.reputation }</td>
+              </tr>
+            `
+            )
+            .join("");
+        }
       });
-
-      function showError(message) {
-        errorDiv.textContent = message;
-        errorDiv.style.display = "block";
-        resultsTable.style.display = "none"; // Hide table when there is an error
-      }
-
-      function updateResults(results) {
-        const resultsContainer = document.getElementById("results");
-        resultsContainer.innerHTML = results
-          .map(
-            (res, index) => `
-          <tr>
-            <td>${index + 1}</td>
-            <td>${res.IP || ""}</td>
-            <td>${res.Domain ||res.AbuseIPDB?.data?.Domain}</td>
-            <td>${res.Country || res.AbuseIPDB?.data?.countryCode}</td>
-            <td>${res.AbuseIPDB?.data?.abuseConfidenceScore }</td>
-            <td>${res.VT?.data?.attributes?.last_analysis_stats?.malicious }</td>
-            <td>${res["OTX-A"]?.reputation}</td>
-          </tr>
-        `
-          )
-          .join("");
-      }
     </script>
   </body>
 </html>
